@@ -105,6 +105,7 @@ EOD;
         $content .= $this->filterSqlPrepareCreate();
         $content .= $this->orderSqlPrepareCreate();
         $content .= $this->limitSqlPrepareCreate();
+        $content .= $this->queryControllerCreate();
         return "<?php\n{$content}\n}";
     }
 
@@ -205,7 +206,6 @@ EOD;
         return $content;
     }
     
-    
     function selectControllerCreate() {
         $className = $this->getClassName();
         $tableName = $this->getTableName();
@@ -221,8 +221,42 @@ EOD;
     public function select(array \$filtros = [], array \$ordenados = [], array \$limitar = []): array {
         try{
             \$sql = "SELECT {$fields} 
-            FROM {$tableName}
-            WHERE TRUE";
+            FROM {$tableName}";                        
+            \$ret = [];
+            \$rows = \$this->query(\$sql, \$filtros, \$ordenados, \$limitar);
+            
+            if(count(\$rows) > 0){
+                foreach(\$rows as \$row){
+                    \$ret[] = new {$className}({$fieldObject});
+                }
+            }
+            
+            return \$ret;
+
+        } catch (Exception \$ex){
+            echo "[ERROR] -> {\$ex->getMessage()} [ERROR CODE] -> {\$ex->getCode()}";
+        }
+    }
+EOD;
+        return $content;
+    }
+    
+    
+    function queryControllerCreate() {
+        $className = $this->getClassName();
+        $tableName = $this->getTableName();
+        $fieldList = $this->getParamList(true);
+        $rowFiels = [];
+        foreach ($fieldList as $field){
+            $rowFiels[] = "\$row->$field";
+        }
+        $fields = implode(", ", $fieldList);
+        $fieldObject = implode(", ", $rowFiels);
+        $content = "\n\n";
+        $content .= <<<"EOD"
+    protected function query(string \$sql, array \$filtros = [], array \$ordenados = [], array \$limitar = []): array {
+        try{
+            \$sql .= " WHERE TRUE";
             \$sql .= \$this->filterSqlPrepare(\$filtros);
             \$sql .= \$this->orderSqlPrepare(\$ordenados);
             \$sql .= \$this->limitSqlPrepare(\$limitar);
@@ -242,11 +276,13 @@ EOD;
             \$ret = [];
             if(\$statement->execute() and \$statement->rowCount() > 0){
                 while (\$row = \$statement->fetch(PDO::FETCH_OBJ)) {
-                    \$ret[] = new {$className}({$fieldObject});
-                }
-                \$conexion = NULL;
-                \$statement->closeCursor();
+                    \$ret[] = \$row;
+                }                
             }
+            
+            \$conexion = NULL;
+            \$statement->closeCursor();
+            
             return \$ret;
 
         } catch (Exception \$ex){
