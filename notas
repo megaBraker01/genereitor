@@ -1,0 +1,16 @@
+
+para comentar varias lines: clr + shift + c
+
+
+baseController
+    prepareSqlFilter()
+    prepareSqlOder()
+    prepareSqlLimit()
+
+
+claseController
+    insertNombreClase() -> devuelve el ultimo registro insertado
+    getNombreClase() -> devuelve lista de NombreClase
+    getByIdNombreClase() -> devuelve un NombreClase
+    editNombreClase() -> edita un NombreClase
+    deleteNombreClase() -> borra un NombreClase
