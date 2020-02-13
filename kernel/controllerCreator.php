@@ -21,22 +21,44 @@ class controllerCreator extends baseCreator {
     protected function filterSqlPrepareCreate() {
         $content = "\n";
         $content .= <<<'EOD'
-    /* pasamos los parametros para condicionar el WHERE de la consulta
-    * el aparametro debe de ser un array de arrays, cada array elemento tiene que ser de la forma:
-    * ['campo_a_comparar', 'sigo_comparacion', 'valor_a_comparar', (opcional 'and | or')]
-    * ejemplo: $filters = [['idEstado', '=', 1], ['idTipo', '!=', 3, 'or'], ['marNombre', 'like', 'merce']];
-    * @param array $filters
-    * @return string    
-    */
+    /**
+     * pasamos los parametros para condicionar el WHERE de la consulta
+     * el aparametro debe de ser un array de arrays, cada array elemento tiene que ser de la forma:
+     * ['campo_a_comparar', 'sigo_comparacion', 'valor_a_comparar', (opcional 'and | or')]
+     * ejemplo: $filters = [['idEstado', '=', 1], ['idTipo', '!=', 3, 'or'], ['marNombre', 'like', 'merce'], ['idBlog', 'in', '1, 5, 8']];
+     * @param array $filters
+     * @return string
+     */
     protected function filterSqlPrepare(array $filters): string {
-        $sql = '';
+        $sql = "";
         if(!empty($filters)){
+            $sql .= " WHERE TRUE";
             $i = 1;
+            $p = 'p';
             foreach($filters as $filter){
+            	$field = $filter[0];
+            	$comparator = strtoupper(trim($filter[1]));
+            	$value = "LIKE" == $comparator ? "%{$filter[2]}%" : $filter[2];
                 $united = (isset($filter[3]) && is_string($filter[3])) ? strtoupper($filter[3]) : 'AND';
-                $param = 'p'.$i++;
-                $filter[1] = strtoupper($filter[1]);
-                $sql .= " $united {$filter[0]} {$filter[1]} :{$param}";
+                
+                if('IN' == $comparator) {
+                    $values = explode(", ", $value);
+                    $paramIN = [];
+                    foreach($values as $val){
+                        $binParam = $p.$i;
+                        $paramIN[]= ":{$binParam}";
+                        $this->parameters[$binParam] = $val;
+                        $i++;
+                    }
+                    $finalParam = implode(", ", $paramIN);
+                    $sql .= " $united {$field} {$comparator} ({$finalParam})";
+                		
+                } else {
+                    $binParam = $p.$i;
+                    $sql .= " $united {$field} {$comparator} :{$binParam}";
+                    $this->parameters[$binParam] = $value;
+                }
+                $i++;
             }
         }
         return $sql;
@@ -49,11 +71,12 @@ EOD;
     protected function orderSqlPrepareCreate() {
         $content = "\n";
         $content .= <<<'EOD'
-    /* preparamos para ordenas la consulta
-    * ejemplo: $ordenados = [['idTipo', 'desc'], ['fechaAlta']];
-    * @param array $orderList
-    * @return string
-    */
+    /**
+     * preparamos para ordenas la consulta
+     * ejemplo: $ordenados = [['idTipo', 'desc'], ['fechaAlta']];
+     * @param array $orderList
+     * @return string
+     */
     protected function orderSqlPrepare(array $orderList): string {
        $ret = "";
        if(!empty($orderList)){
@@ -77,11 +100,12 @@ EOD;
     protected function limitSqlPrepareCreate() {
         $content = "\n";
         $content .= <<<'EOD'
-    /* preparamos para limitar la consulta
-    * ejemplo: $limitar = [2, 5] o $limitar = [3];
-    * @param array $limit
-    * @return string
-    */
+    /**
+     * preparamos para limitar la consulta
+     * ejemplo: $limitar = [2, 5] o $limitar = [3];
+     * @param array $limit
+     * @return string
+     */
     protected function limitSqlPrepare(array $limit): string {
         $sql = "";
         if(!empty($limit)){
@@ -94,6 +118,27 @@ EOD;
         $content .= "\n";
         return $content;
     }
+    
+    protected function groupSqlPrepareCreate() {
+        $content = "\n";
+        $content .= <<<'EOD'
+    /**
+     * Preparamos para agrupar la consulta por los campos indicados
+     * ejemplo: $groupList = ['idCategoria', 'precio'];
+     * @param array $groupList
+     * @return string
+     */
+    protected function groupSqlPrepare(array $groupList){
+        $ret = "";
+        if(!empty($groupList)){
+            $ret .=" GROUP BY ".implode(', ', $groupList);
+        }
+        return $ret;
+    }
+EOD;
+        $content .= "\n";
+        return $content;        
+    }
 
     /**
      * 
@@ -102,7 +147,9 @@ EOD;
     function baseControllerClassCreate() {
         $content = "\n\n";
         $content .= "abstract class BaseController {\n\n";
+        $content .= "   protected \$parameters = [];\n";
         $content .= $this->filterSqlPrepareCreate();
+        $content .= $this->groupSqlPrepareCreate();
         $content .= $this->orderSqlPrepareCreate();
         $content .= $this->limitSqlPrepareCreate();
         $content .= $this->queryControllerCreate();
@@ -218,12 +265,12 @@ EOD;
         $fieldObject = implode(", ", $rowFiels);
         $content = "\n\n";
         $content .= <<<"EOD"
-    public function select(array \$filtros = [], array \$ordenados = [], array \$limitar = []): array {
+    public function select(array \$filtros = [], array \$ordenados = [], array \$limitar = [], array \$agrupar = []): array {
         try{
             \$sql = "SELECT {$fields} 
             FROM {$tableName}";                        
             \$ret = [];
-            \$rows = \$this->query(\$sql, \$filtros, \$ordenados, \$limitar);
+            \$rows = \$this->query(\$sql, \$filtros, \$ordenados, \$limitar, \$agrupar);
             
             if(count(\$rows) > 0){
                 foreach(\$rows as \$row){
@@ -243,50 +290,42 @@ EOD;
     
     
     function queryControllerCreate() {
-        $className = $this->getClassName();
-        $tableName = $this->getTableName();
-        $fieldList = $this->getParamList(true);
-        $rowFiels = [];
-        foreach ($fieldList as $field){
-            $rowFiels[] = "\$row->$field";
-        }
-        $fields = implode(", ", $fieldList);
-        $fieldObject = implode(", ", $rowFiels);
         $content = "\n\n";
-        $content .= <<<"EOD"
-    protected function query(string \$sql, array \$filtros = [], array \$ordenados = [], array \$limitar = []): array {
+        $content .= <<<'EOD'
+    /**
+     * Para realizar querys personalizadas
+     * @param string $sql
+     * @param array $filtros
+     * @param array $ordenados
+     * @param array $limitar
+     * @param array $agrupar
+     * @return array
+     */
+    protected function query(string $sql, array $filtros = [], array $ordenados = [], array $limitar = [], array $agrupar = []): array {
         try{
-            \$sql .= " WHERE TRUE";
-            \$sql .= \$this->filterSqlPrepare(\$filtros);
-            \$sql .= \$this->orderSqlPrepare(\$ordenados);
-            \$sql .= \$this->limitSqlPrepare(\$limitar);
+            $sql .= $this->filterSqlPrepare($filtros);
+            $sql .= $this->groupSqlPrepare($agrupar);
+            $sql .= $this->orderSqlPrepare($ordenados);
+            $sql .= $this->limitSqlPrepare($limitar);
+            $conexion = new Conexion();
+            $statement = $conexion->pdo()->prepare($sql);
             
-            \$conexion = new Conexion();
-            \$statement = \$conexion->pdo()->prepare(\$sql);
-            
-            \$i = 1;
-            foreach(\$filtros as \$filtro){
-                if(strtolower(\$filtro[1]) == "like"){
-                    \$filtro[2] = "%{\$filtro[2]}%";
-                }
-                \$statement->bindValue(":p{\$i}", \$filtro[2]);
-                \$i++;
+            foreach($this->parameters as $key => $val){
+		$statement->bindValue($key, $val);
+            }
+                        
+            $ret = [];
+            if($statement->execute() and $statement->rowCount() > 0){
+                $ret = $statement->fetchAll(PDO::FETCH_OBJ);
             }
             
-            \$ret = [];
-            if(\$statement->execute() and \$statement->rowCount() > 0){
-                while (\$row = \$statement->fetch(PDO::FETCH_OBJ)) {
-                    \$ret[] = \$row;
-                }                
-            }
+            $conexion = NULL;
+            $statement->closeCursor();
             
-            \$conexion = NULL;
-            \$statement->closeCursor();
-            
-            return \$ret;
+            return $ret;
 
-        } catch (Exception \$ex){
-            echo "[ERROR] -> {\$ex->getMessage()} [ERROR CODE] -> {\$ex->getCode()}";
+        } catch (Exception $ex){
+            echo "[ERROR] -> {$ex->getMessage()} [ERROR CODE] -> {$ex->getCode()}";
         }
     }
 EOD;
