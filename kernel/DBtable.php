@@ -79,7 +79,7 @@ class DBtable {
             }
             return $list;
         } catch (Exception $exc) {
-            echo $exc->getTraceAsString() . " [MENSAJE] " . $ex->getMessage();
+            echo $exc->getTraceAsString() . " [MENSAJE] " . $exc->getMessage();
         }
     }
 

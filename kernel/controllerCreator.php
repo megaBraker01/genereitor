@@ -272,7 +272,7 @@ EOD;
             \$ret = [];
             \$rows = \$this->query(\$sql, \$filtros, \$ordenados, \$limitar, \$agrupar);
             
-            if(count(\$rows) > 0){
+            if(!empty(\$rows)){
                 foreach(\$rows as \$row){
                     \$ret[] = new {$className}({$fieldObject});
                 }
@@ -337,7 +337,7 @@ EOD;
         $tableName = $this->getTableName();
         $primariKeys = $this->getPrimariKeys(true);
         $whereFields = [];
-        $validateFiels = "";
+        $validateFiels = [];
         foreach ($primariKeys as $field) {
             $whereFields[] = "{$field} = :{$field}";
             $validateFiels[] = "!isset(\$ids['{$field}'])";

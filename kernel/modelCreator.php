@@ -83,6 +83,27 @@ EOD;
         $content .= "\n";
         return $content;
     }
+    
+    /*
+     * crea un metodo perteneciente a la clase abstracta ModelBase
+     * que obtiene un objeto en formato json de la clase
+     * @return string
+     */
+
+    function toJsonBaseCreate(): string {
+        $content = "\n";
+        $content .= <<<'EOD'
+    /*
+    * Retorna un objeto en formato json de la clase   
+    * @return string 
+    */
+    public function toJson(): string {
+        return json_encode($this->getAllParams(false, false));
+    }
+EOD;
+        $content .= "\n";
+        return $content;
+    }
 
     /*
      * crea un metodo perteneciente a la clase abstracta ModelBase
@@ -123,6 +144,7 @@ EOD;
         $content .= "abstract class ModelBase {\n";
         $content .= $this->getIdBaseCreate();
         $content .= $this->getAllParamsBaseCreate();
+        $content .= $this->toJsonBaseCreate();
         $content .= $this->setAllParamsBaseCreate();
         return "<?php\n{$content}\n}";
     }

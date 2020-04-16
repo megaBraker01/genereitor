@@ -123,6 +123,7 @@ abstract class baseCreator {
      * @return: un strign formateado
      */
 
+    // TODO: ver si este metodo funciona correctamente seteando los tipos
     function prepareFieldTypeToConstruct($params = []): array {
         if (!empty($params)) {
             $newParam = [];
