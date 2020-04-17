@@ -31,6 +31,7 @@ class controllerCreator extends baseCreator {
      */
     protected function filterSqlPrepare(array $filters): string {
         $sql = "";
+        $this->parameters = [];
         if(!empty($filters)){
             $sql .= " WHERE TRUE";
             $i = 1;
