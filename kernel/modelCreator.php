@@ -123,7 +123,7 @@ EOD;
             foreach($paramList as $param => $value){
                 if(property_exists($this, $param)){
                     //$this->$param = $value;
-                    $method = "set$param";
+                    $method = "set" . ucfirst($param);
                     $this->$method($value);
                 }
             }
@@ -234,7 +234,7 @@ EOD;
                 $ret .= $tab . "public function get{$modelName}(){\n";
                 $ret .= $tab . $tab . "\${$modelC} = new {$modelC}();\n";
                 $ret .= $tab . $tab . "\${$field['Field']} = \$this->getId{$modelName}();\n";
-                $ret .= $tab . $tab . "\${$modelName}List = \${$modelC}->select([['{$field['Field']}', '=', \${$field['Field']}]]);\n";
+                $ret .= $tab . $tab . "\${$modelName}List = \${$modelC}->select([['{$field['Field']}', \${$field['Field']}]]);\n";
                 $ret .= $tab . $tab . "return \${$modelName}List[0];\n";
                 $ret .= $tab . "}\n";
             }
