@@ -31,7 +31,7 @@ abstract class baseCreator {
     
     function normalizeClassName($str){
         $strlower = strtolower($str);
-        $strNoScore = str_replace("_", " ", $strlower);
+        $strNoScore = str_replace(["_", "-"], " ", $strlower);
         $strupper = ucwords($strNoScore);
         $strNoSpace = str_replace(" ", "", $strupper);
         return $strNoSpace;

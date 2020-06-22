@@ -30,67 +30,67 @@ function normalizeClassName($str){
 }
 
 // reorganizamos la informacion en un unico array llamado tablesInfo
-$tableInfo = [];
-foreach ($_SESSION['className'] as $key => $value){
+if (isset($_SESSION['className'])){
+    $tableInfo = [];
+    foreach ($_SESSION['className'] as $key => $value){
 
-    $tableInfo['tableName'] = $key;
-    $tableInfo['className'] = $value;
+        $tableInfo['tableName'] = $key;
+        $tableInfo['className'] = $value;
 
-    foreach ($_SESSION['toString'] as $k => $v){
-        if($key == $k){
-            $tableInfo['toString'] = $v;
+        foreach ($_SESSION['toString'] as $k => $v){
+            if($key == $k){
+                $tableInfo['toString'] = $v;
+            }
         }
+
+        $_SESSION['tablesInfo'][] = $tableInfo;
+
     }
 
-    $_SESSION['tablesInfo'][] = $tableInfo;
+     unset($_SESSION['className']); // eliminamos esta posicion porque ya no hace falta
+     unset($_SESSION['toString']); // eliminamos esta posicion porque ya no hace falta
 
-}
- 
- unset($_SESSION['className']); // eliminamos esta posicion porque ya no hace falta
- unset($_SESSION['toString']); // eliminamos esta posicion porque ya no hace falta
+    /*
+     sabiendo el parametro que se va a seleccionar como toString de la clase
+     y sabiendo el nombre que va a tener la clase modelo
+     ya podemos crear sus correspondiente modelo y controlador
+     empezando por el modelo
+    */
 
-/*
- sabiendo el parametro que se va a seleccionar como toString de la clase
- y sabiendo el nombre que va a tener la clase modelo
- ya podemos crear sus correspondiente modelo y controlador
- empezando por el modelo
-*/
- 
-$tablaController = new DBtable; // creamos el objeto para obtener la informacion de la tabla
-$modelPath = "Modelo/"; // direccion donde irán las clases modelo
-$controllerPath = "Controlador/"; // direccion donde irán las clase controller
-$file = new File;
-foreach($_SESSION['tablesInfo'] as $tablesInfo){
-    $tableName = $tablesInfo['tableName'];
-    $className = $tablesInfo['className'];
-    $toStringField = $tablesInfo['toString'];
-    $modelCreator = new modelCreator($className, $tableName);
-    if ($toStringField != "-") {
-        $modelCreator->setToString($toStringField);
+    $tablaController = new DBtable; // creamos el objeto para obtener la informacion de la tabla
+    $modelPath = "Modelo/"; // direccion donde irán las clases modelo
+    $controllerPath = "Controlador/"; // direccion donde irán las clase controller
+    $file = new File;
+    foreach($_SESSION['tablesInfo'] as $tablesInfo){
+        $tableName = $tablesInfo['tableName'];
+        $className = $tablesInfo['className'];
+        $toStringField = $tablesInfo['toString'];
+        $modelCreator = new modelCreator($className, $tableName);
+        if ($toStringField != "-") {
+            $modelCreator->setToString($toStringField);
+        }
+        $fields = $tablaController->getTableFields($tableName); // obtenemos los campos de la tabla desde la bbdd
+        // TODO: cambiar el nombre de setParamList a setFieldList (en baseCreator tambien)
+        $modelCreator->setParamList($fields);
+        $modelContent = $modelCreator->classCreate();
+        $modelBaseContent = $modelCreator->classBaseCreate();
+        $classNameNormalizer = $modelCreator->normalizeClassName($className);
+        $file->create($classNameNormalizer."Base.php", $modelPath."base", $modelBaseContent); // creamos la clase Base en el directorio especificado
+        $file->create($classNameNormalizer.".php", $modelPath, $modelContent); // creamos la clase en el directorio especificado
+
+        // ahora creamos los controladores
+        $controller = new controllerCreator($className, $tableName);
+        $controller->setParamList($fields);
+        $controllerContent = $controller->controllerCreate();
+        $controllerBaseContent = $controller->controllerBaseCreate();
+        $file->create($classNameNormalizer."Controller.php", $controllerPath, $controllerContent);
+        $file->create($classNameNormalizer."BaseController.php", $controllerPath."base", $controllerBaseContent);
+        echo("<pre>$controllerContent</pre>");
+
     }
-    $fields = $tablaController->getTableFields($tableName); // obtenemos los campos de la tabla desde la bbdd
-    // TODO: cambiar el nombre de setParamList a setFieldList (en baseCreator tambien)
-    $modelCreator->setParamList($fields);
-    $modelContent = $modelCreator->classCreate();
-    $modelBaseContent = $modelCreator->classBaseCreate();
-    $classNameNormalizer = normalizeClassName($className);
-    $file->create($classNameNormalizer."Base.php", $modelPath."/base", $modelBaseContent); // creamos la clase Base en el directorio especificado
-    $file->create($classNameNormalizer.".php", $modelPath, $modelContent); // creamos la clase en el directorio especificado
-    
-    // ahora creamos los controladores
-    $controller = new controllerCreator($className, $tableName);
-    $controller->setParamList($fields);
-    $controllerContent = $controller->controllerCreate();
-    $controllerBaseContent = $controller->controllerBaseCreate();
-    $file->create($classNameNormalizer."Controller.php", $controllerPath, $controllerContent);
-    $file->create($classNameNormalizer."BaseController.php", $controllerPath."/base", $controllerBaseContent);
-    echo("<pre>$controllerContent</pre>");
-    
+    $file->create('ModelBase.php', $modelPath."/base", $modelCreator->baseModelClassCreate()); // creamos la clase ModelBase.php
+    $file->create("BaseController.php", $controllerPath."/base", $controller->baseControllerClassCreate()); // creamos la clase BaseContro
 }
-var_dump($modelBaseContent);
-$file->create('ModelBase.php', $modelPath."/base", $modelCreator->baseModelClassCreate()); // creamos la clase ModelBase.php
-$file->create("BaseController.php", $controllerPath."/base", $controller->baseControllerClassCreate()); // creamos la clase BaseContro
-
  unset($_SESSION);
  session_unset();
  session_destroy();
@@ -127,6 +127,7 @@ $file->create("BaseController.php", $controllerPath."/base", $controller->baseCo
                         <div class="card-body">
 
                             <!-- aqui van los elementos -->
+                            <h3>La clase se ha creado correctamente</h3>
 
 
                         </div>

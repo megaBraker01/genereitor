@@ -22,14 +22,15 @@ class File {
         }
         $fullPath = "$path/$name";
         try {
+            $ret = FALSE;
             if ($file = fopen($fullPath, "w")) {
                 if ($content != "") {
                     fwrite($file, $content);
                 }
                 fclose($file);
-                return TRUE;
+                $ret = TRUE;
             }
-            return FALSE;
+            return $ret;
         } catch (Exception $exc) {
             echo $exc->getTraceAsString();
         }
