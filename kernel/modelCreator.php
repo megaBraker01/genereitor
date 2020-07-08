@@ -50,13 +50,15 @@ class modelCreator extends baseCreator {
         $content = "\n";
         $content .= <<<'EOD'
     /*
-    * @return int pk de la tabla
-    */
+     * @return int pk de la tabla
+     */
     public function getId(){
         $params = $this->getAllParams();
         return $params[0];
     }   
 EOD;
+        $content .= "\n";
+        return $content;
     }
 
     /*
@@ -68,10 +70,13 @@ EOD;
     function getAllParamsBaseCreate(): string {
         $content = "\n";
         $content .= <<<'EOD'
-    /*
-    * @return array indexado con los nombre de todas las propiedades de la clase
-    */
-    public function getAllParams($excludeFK = false, $justKeys = true): array {
+    /**
+     * Obtiene un array indexado con los nombre de todas las propiedades de la clase
+     * @param bool $excludeFK
+     * @param bool $justKeys
+     * @return array
+     */
+    public function getAllParams(bool $excludeFK = false, bool $justKeys = true): array {
         $ret = get_object_vars($this);        
         if($justKeys){ $ret = array_keys($ret); }
         
@@ -93,10 +98,10 @@ EOD;
     function toJsonBaseCreate(): string {
         $content = "\n";
         $content .= <<<'EOD'
-    /*
-    * Retorna un objeto en formato json de la clase   
-    * @return string 
-    */
+    /**
+     * Retorna un objeto en formato json de la clase   
+     * @return string 
+     */
     public function toJson(): string {
         return json_encode($this->getAllParams(false, false));
     }
@@ -104,31 +109,77 @@ EOD;
         $content .= "\n";
         return $content;
     }
+    
+    
+    function getAllMethodsCreate(): string {
+        $content = "\n";
+        $content .= <<<'EOD'
+    /*
+     * Obtiene todos los meltodos publicos de la clase actual   
+     * @return array 
+     */
+    public function getAllMethods(){
+        return get_class_methods($this);
+    }
+EOD;
+        $content .= "\n";
+        return $content;
+        
+    }
 
+    
     /*
      * crea un metodo perteneciente a la clase abstracta ModelBase
      * que setea todos los paramentros de la clase
      * @return string
      */
-
     function setAllParamsBaseCreate(): string {
         $content = "\n";
         $content .= <<<'EOD'
-    /*
-    * @param array asociativo propiedadClase => valor $paramList
-    * ej: ['nombre' => 'juan', 'telefono' => 987987987]
-    */
+    /**
+     * Setea los parametros de una clase mediante sus metodos setters
+     * ej: ['nombre' => 'juan', 'telefono' => 987987987]
+     * @param array $paramList
+     * @return $this
+     */
     public function setAllParams(array $paramList){
         if(!empty($paramList)){
+            $methods = $this->getAllMethods();
             foreach($paramList as $param => $value){
                 if(property_exists($this, $param)){
-                    //$this->$param = $value;
                     $method = "set" . ucfirst($param);
-                    $this->$method($value);
+                    if(in_array($method, $methods)){
+                       $this->$method(trim($value)); 
+                    }
                 }
             }
         }
         return $this;
+    }
+EOD;
+        $content .= "\n";
+        return $content;
+    }
+    
+    
+    function slugifyCreate(): string {
+        $content = "\n";
+        $content .= <<<'EOD'
+    /**
+     *   
+     * @param type $cadena
+     * @param type $separador
+     * @return string
+     */
+    public function slugify($cadena, $separador = '-')
+    {
+        setlocale(LC_ALL, 'en_US.UTF8');
+        $slug = iconv('UTF-8', 'ASCII//TRANSLIT', $cadena);
+        $slug = preg_replace("/[^a-zA-Z0-9\/_|+ -]/", '', $slug);
+        $slug = preg_replace("/[\/_|+ -]+/", $separador, $slug);
+        $slug = strtolower(trim($slug, $separador));
+
+        return !empty($slug) ? $slug : "n{$separador}a";
     }
 EOD;
         $content .= "\n";
@@ -143,8 +194,10 @@ EOD;
         $content = "\n";
         $content .= "abstract class ModelBase {\n";
         $content .= $this->getIdBaseCreate();
+        $content .= $this->getAllMethodsCreate();
         $content .= $this->getAllParamsBaseCreate();
         $content .= $this->toJsonBaseCreate();
+        $content .= $this->slugifyCreate();
         $content .= $this->setAllParamsBaseCreate();
         return "<?php\n{$content}\n}";
     }
